@@ -42,6 +42,8 @@ class MarkovChainSingle:
         """
         if reset:
             self.reset()
+        else:
+            self.path = list(self.path)
         for _ in range(steps):
             self.step()
         self.path = np.array(self.path)

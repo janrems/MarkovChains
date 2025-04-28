@@ -13,6 +13,15 @@ class MarkovChain:
         self.num_states = self.initial_distribution.shape[0]
         self.path = None  # Will store path here later
         self.current_state = None  # Current state
+        self.test_probs()
+
+    def test_probs(self):
+        if np.sum(self.initial_distribution) != 1:
+            raise ValueError("Initial distribution doesn't sum up to 1")
+
+        row_sums = np.sum(self.transition_kernel, axis=1)
+        if not np.prod(row_sums==1):
+            raise ValueError("Transition Kernel is not a stochastic matrix")
 
     def reset(self, num_chains=1):
         """
@@ -68,8 +77,10 @@ class MarkovChain:
         """
         if reset:
             self.reset(num_chains=num_chains)
+        else:
+            self.path = list(self.path)
         for _ in range(steps):
-            self.step()
+            self.step_for()
         # Convert path to numpy array for easier processing
         self.path = np.stack(self.path, axis=1)  # shape (num_chains, steps+1)
 
@@ -143,7 +154,6 @@ class MarkovChain:
 
 
 
-
 # Example usage
 if __name__ == "__main__":
     initial_distribution = [0.2, 0.5, 0.3]
@@ -156,13 +166,13 @@ if __name__ == "__main__":
     mc = MarkovChain(initial_distribution, transition_kernel)
 
     # Simulate a single chain
-    mc.simulate(steps=50, num_chains=2)
+    mc.simulate(steps=50, num_chains=1)
     print("Single chain path shape:", mc.path.shape)
     mc.plot_path()
     mc.plot_empirical_distribution()
 
     # Simulate multiple chains
-    mc.simulate(steps=100, num_chains=500)
+    mc.simulate(steps=100, num_chains=2)
     print("Multiple chains path shape:", mc.path.shape)
     mc.plot_average_distribution()
 

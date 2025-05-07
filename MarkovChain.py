@@ -145,6 +145,23 @@ class MarkovChain:
         plt.grid(axis='y')
         plt.show()
 
+    def step(self):
+        """
+        Perform one step of the Markov chain(s) in a fully vectorized way.
+        """
+        probs = self.transition_kernel[self.current_state]
+        if probs.ndim == 1:
+            next_state = np.random.choice(self.num_states, p=probs)
+        else:
+            rand_vals = np.random.rand(probs.shape[0])
+            cumulative_probs = np.cumsum(probs, axis=1)
+            next_state = (rand_vals[:, None] < cumulative_probs).argmax(axis=1)
+
+        self.current_state = next_state
+        self.path.append(self.current_state.copy())
+
+
+
 
 
 # Example usage
@@ -169,18 +186,6 @@ if __name__ == "__main__":
     print("Multiple chains path shape:", mc.path.shape)
     mc.plot_average_distribution()
 
-    mc.n_step_kernel(10)
-
-    mc.estimate_transition_kernel(10)
-
-
-    mc.compare_kernels(10,100000)
-
-    mc.stationary_distribution()
-
-    mc.compute_mixing_time()
-
-    mc.expected_mixing_time(tolerance=0.001)
 
 
 

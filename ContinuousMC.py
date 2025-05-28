@@ -169,7 +169,6 @@ mc.plot_average_distribution()
 
 
 
-mc.plot_transition_kernel(0.0, num_samples=10**6)
+mc.plot_transition_kernel(3.0, num_samples=10**6)
 
 
-from mpl_toolkits.mplot3d import Axes3D

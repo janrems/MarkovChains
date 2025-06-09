@@ -172,3 +172,203 @@ mc.plot_average_distribution()
 mc.plot_transition_kernel(3.0, num_samples=10**6)
 
 
+##########
+
+from mpl_toolkits.mplot3d import Axes3D
+
+class AR1Multivariate:
+    def __init__(self, phi_matrix, noise_cov=None, initial_mean=None, initial_cov=None):
+        self.phi = np.array(phi_matrix)
+        self.d = self.phi.shape[0]
+
+        self.noise_cov = np.eye(self.d) if noise_cov is None else np.array(noise_cov)
+        self.initial_mean = np.zeros(self.d) if initial_mean is None else np.array(initial_mean)
+        self.initial_cov = np.eye(self.d) if initial_cov is None else np.array(initial_cov)
+
+        self.current_state = None
+        self.path = None
+
+    def reset(self, num_chains=1):
+        self.current_state = np.random.multivariate_normal(self.initial_mean, self.initial_cov, size=num_chains)
+        self.path = [self.current_state.copy()]
+
+    def reset_to_state(self, state, num_chains=1):
+        self.current_state = np.tile(np.array(state), (num_chains, 1))
+        self.path = [self.current_state.copy()]
+
+    def step(self):
+        noise = np.random.multivariate_normal(np.zeros(self.d), self.noise_cov, size=self.current_state.shape[0])
+        self.current_state = self.current_state @ self.phi.T + noise
+        self.path.append(self.current_state.copy())
+
+    def simulate(self, steps, num_chains=1, reset=True):
+        if reset:
+            self.reset(num_chains)
+        else:
+            self.path = list(self.path)
+
+        for _ in range(steps):
+            self.step()
+
+        self.path = np.stack(self.path, axis=1)
+        return self.path
+
+    def plot_path(self, chain_index=0):
+        if self.path is None:
+            raise ValueError("No path found. Run simulate() first.")
+
+        path = self.path[chain_index]  # shape (steps+1, d)
+
+        if self.d == 1:
+            plt.plot(path[:, 0], marker='o', linestyle='-')
+            plt.xlabel('Time')
+            plt.ylabel('Value')
+            plt.title('1D AR(1) Path')
+            plt.grid(True)
+            plt.show()
+
+        elif self.d == 2:
+            plt.plot(path[:, 0], path[:, 1], marker='o', linestyle='-')
+            plt.xlabel('X1')
+            plt.ylabel('X2')
+            plt.title('2D AR(1) Path')
+            plt.grid(True)
+            plt.axis('equal')
+            plt.show()
+
+        elif self.d == 3:
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+            ax.plot(path[:, 0], path[:, 1], path[:, 2], marker='o')
+            ax.set_xlabel('X1')
+            ax.set_ylabel('X2')
+            ax.set_zlabel('X3')
+            ax.set_title('3D AR(1) Path')
+            plt.show()
+
+        else:
+            raise NotImplementedError("Path plotting is only supported for dimensions <= 3")
+
+    def plot_empirical_distribution(self, chain_index=0, bins=30):
+        if self.path is None:
+            raise ValueError("No path found. Run simulate() first.")
+
+        path = self.path[chain_index]  # (steps+1, d)
+
+        if self.d == 1:
+            plt.hist(path[:, 0], bins=bins, density=True, color='skyblue')
+            plt.xlabel('Value')
+            plt.ylabel('Density')
+            plt.title(f'Empirical Distribution (Chain {chain_index})')
+            plt.grid(True)
+            plt.show()
+
+        elif self.d == 2:
+            plt.hist2d(path[:, 0], path[:, 1], bins=bins, density=True, cmap='Blues')
+            plt.xlabel('X1')
+            plt.ylabel('X2')
+            plt.title(f'2D Empirical Distribution (Chain {chain_index})')
+            plt.colorbar(label='Density')
+            plt.grid(True)
+            plt.axis('equal')
+            plt.show()
+
+        else:
+            raise NotImplementedError("Empirical distribution plotting supported only for d <= 2")
+
+    def plot_average_distribution(self, bins=30):
+        if self.path is None:
+            raise ValueError("No path found. Run simulate() first.")
+
+        values = self.path.reshape(-1, self.d)  # (num_chains * (steps+1), d)
+
+        if self.d == 1:
+            plt.hist(values[:, 0], bins=bins, density=True, color='lightgreen')
+            plt.xlabel('Value')
+            plt.ylabel('Density')
+            plt.title('Average Empirical Distribution')
+            plt.grid(True)
+            plt.show()
+
+        elif self.d == 2:
+            plt.hist2d(values[:, 0], values[:, 1], bins=bins, density=True, cmap='Greens')
+            plt.xlabel('X1')
+            plt.ylabel('X2')
+            plt.title('2D Average Empirical Distribution')
+            plt.colorbar(label='Density')
+            plt.grid(True)
+            plt.axis('equal')
+            plt.show()
+
+        else:
+            raise NotImplementedError("Average distribution plotting supported only for d <= 2")
+
+    def plot_transition_kernel(self, x0, n_steps=1, num_samples=10000, bins=100):
+        x0 = np.array(x0)
+        if x0.ndim == 0:
+            x0 = x0[None]
+
+        self.reset_to_state(x0, num_samples)
+        self.simulate(n_steps, num_chains=num_samples, reset=False)
+        final_states = self.path[:, -1]  # shape (num_samples, d)
+
+        if self.d == 1:
+            plt.figure(figsize=(6, 4))
+            plt.hist(final_states[:, 0], bins=bins, density=True, color='orange')
+            plt.xlabel('Value')
+            plt.ylabel('Density')
+            plt.title(f'Transition Kernel PDF after {n_steps} steps from x0={x0[0]}')
+            plt.grid(True)
+            plt.show()
+
+        elif self.d == 2:
+            plt.figure(figsize=(6, 6))
+            plt.hist2d(final_states[:, 0], final_states[:, 1], bins=bins, density=True, cmap='Oranges')
+            plt.xlabel('Dim 1')
+            plt.ylabel('Dim 2')
+            plt.title(f'Transition Kernel PDF after {n_steps} steps from x0={x0}')
+            plt.colorbar(label='Density')
+            plt.grid(True)
+            plt.show()
+
+        else:
+            raise ValueError("Transition kernel plotting supported only for 1D or 2D processes.")
+
+
+phi = np.array([[0.7, 0.1],
+                [0.0, 0.9]])
+
+
+
+mc2 = AR1Multivariate(phi)
+path = mc2.simulate(steps=20, num_chains=1000, reset=True)
+mc2.plot_path()
+
+# Plot PDF of 2D transition kernel
+mc2.plot_transition_kernel(x0=[1.0, 0.0], n_steps=5)
+#mc2.plot_empirical_distribution()
+mc2.plot_average_distribution()
+
+mc2.plot_transition_kernel(x0=[1.0, 0.0])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -86,3 +86,15 @@ gibbs = GibbsSampler(
 samples = gibbs.run(5000)
 gibbs.plot_trajectory()
 gibbs.plot_samples()
+
+
+
+
+
+
+
+
+
+
+
+

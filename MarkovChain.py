@@ -246,6 +246,57 @@ class MarkovChain:
         stationary_distribution = stationary / np.sum(stationary)
         return stationary_distribution
 
+    def compute_mixing_time(self, tolerance=1e-2, max_steps=1000, num_chains=1000, to_print=True):
+        """
+        Estimate how many steps are needed for the empirical distribution to approach the stationary distribution.
+
+        Args:
+            tolerance: Threshold for convergence (e.g., total variation distance).
+            max_steps: Maximum number of steps to simulate.
+            num_chains: Number of chains to run in parallel.
+
+        Returns:
+            steps_to_convergence: Number of steps where empirical distribution is within tolerance of stationary.
+        """
+        stationary = self.stationary_distribution()
+        self.reset(num_chains)  # Initialize chains
+
+        for step in range(1, max_steps + 1):
+            self.step()
+
+            # Get empirical distribution across all chains at this step
+            counts = np.bincount(self.current_state, minlength=self.num_states)
+            empirical = counts / num_chains
+
+            # Compute total variation distance (L1 norm / 2)
+            tv_distance = np.sum(np.abs(empirical - stationary))
+
+
+            if tv_distance < tolerance:
+                return step
+
+        if to_print:
+            print(f"Did not converge within {max_steps} steps (final TV distance: {tv_distance:.5f})")
+        return None  # Or max_steps if you want to return the upper limit
+
+    def expected_mixing_time(self, sample_size=100, tolerance=1e-2, max_steps=1000, num_chains=1000):
+        sum = 0
+        nones = 0
+        for i in range(sample_size):
+            time = self.compute_mixing_time(tolerance,max_steps,num_chains, to_print=False)
+            if time != None:
+                sum += time
+            else:
+                nones += 1
+
+        if nones==0:
+            print("Mixing time always reached")
+            return sum/sample_size
+        else:
+            sum += nones*max_steps
+            print(f"Mixing time at least {sum/sample_size}")
+            print(f"\nMixing time not reached {nones} times")
+            return sum/sample_size
 
 
 
@@ -285,7 +336,6 @@ if __name__ == "__main__":
     mc.compute_mixing_time()
 
     mc.expected_mixing_time(tolerance=0.001)
-
 
 
 
